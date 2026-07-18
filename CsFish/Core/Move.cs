@@ -15,10 +15,10 @@ namespace CsFish.Core
         // TODO: add castling
     }
 
-    public readonly struct Move(int f, int t, MoveFlag? flag = MoveFlag.None)
+    public readonly struct Move(int f, int t, MoveFlag flag = MoveFlag.None)
     {
         public readonly int From = f;
         public readonly int To = t;
-        public readonly MoveFlag? Flag = flag;
+        public readonly MoveFlag Flag = flag;
     }
 }

@@ -17,29 +17,27 @@ namespace CsFish.MoveGeneration
             PrecomputeMoveData();
         }
 
-        public List<Move> GenerateLegalMoves(Board b)
+        public void GenerateLegalMoves(Board b, List<Move> pseudoLegal, List<Move> legal)
         {
-            List<Move> pseudoLegalMoves = GeneratePseudoLegalMoves(b);
-            List<Move> legal = [];
+            pseudoLegal.Clear();
+            GeneratePseudoLegalMoves(b, pseudoLegal);
 
+            legal.Clear();
             int movingColor = b.ColorToMove;
-            
-            foreach(Move m in pseudoLegalMoves)
+
+            for (int i = 0; i < pseudoLegal.Count; i++)
             {
+                Move m = pseudoLegal[i];
                 b.MakeMove(m);
                 if (!IsKingInCheck(b, movingColor))
                     legal.Add(m);
                 b.UndoMove(m);
             }
-
-            return legal;
         }
 
-        public List<Move> GeneratePseudoLegalMoves(Board b)
+        public void GeneratePseudoLegalMoves(Board b, List<Move> moves)
         {
-            List<Move> moves = [];
-
-            for(int startSquare = 0; startSquare < 64; startSquare++)
+            for (int startSquare = 0; startSquare < 64; startSquare++)
             {
                 int piece = b.Square[startSquare];
                 if (!Piece.IsColor(piece, b.ColorToMove))
@@ -48,32 +46,28 @@ namespace CsFish.MoveGeneration
                 int type = Piece.GetType(piece);
                 if (type == Piece.Bishop || type == Piece.Rook || type == Piece.Queen)
                 {
-                    moves.AddRange(GenerateSlidingMoves(startSquare, piece, b));
+                    GenerateSlidingMoves(startSquare, piece, b, moves);
                 }
 
                 else if (type == Piece.Knight)
                 {
-                    moves.AddRange(GenerateKnightMoves(startSquare, b));
+                    GenerateKnightMoves(startSquare, b, moves);
                 }
 
                 else if (type == Piece.King)
                 {
-                    moves.AddRange(GenerateKingMoves(startSquare, b));
+                    GenerateKingMoves(startSquare, b, moves);
                 }
 
                 else if (type == Piece.Pawn)
                 {
-                    moves.AddRange(GeneratePawnMoves(startSquare, b, piece));
+                    GeneratePawnMoves(startSquare, b, piece, moves);
                 }
             }
-
-            return moves;
         }
 
-        private List<Move> GeneratePawnMoves(int startSquare, Board b, int piece)
+        private void GeneratePawnMoves(int startSquare, Board b, int piece, List<Move> moves)
         {
-            List<Move> moves = [];
-
             bool isWhite = Piece.IsColor(piece, Piece.White);
 
             int forward = isWhite ? 8 : -8;
@@ -124,9 +118,6 @@ namespace CsFish.MoveGeneration
                     moves.Add(new Move(startSquare, target, MoveFlag.EnPassant));
                 }
             }
-
-
-            return moves;
         }
 
         private static void AddPawnMove(List<Move> moves, int from, int to, bool isPromotion)
@@ -144,10 +135,8 @@ namespace CsFish.MoveGeneration
             }
         }
 
-        private List<Move> GenerateKingMoves(int startSquare, Board b)
+        private void GenerateKingMoves(int startSquare, Board b, List<Move> moves)
         {
-            List<Move> moves = [];
-
             for (int dir = 0; dir < 8; dir++)
             {
                 // board border reached
@@ -163,18 +152,14 @@ namespace CsFish.MoveGeneration
 
                 moves.Add(new Move(startSquare, targetSquare));
             }
-
-            return moves;
         }
 
-        private List<Move> GenerateKnightMoves(int startSquare, Board b)
+        private void GenerateKnightMoves(int startSquare, Board b, List<Move> moves)
         {
-            List<Move> moves = [];
-
             int startFile = startSquare % 8;
             int startRank = startSquare / 8;
 
-            foreach(int offset in KnightOffsets)
+            foreach (int offset in KnightOffsets)
             {
                 int targetSquare = startSquare + offset;
 
@@ -203,16 +188,12 @@ namespace CsFish.MoveGeneration
 
                 moves.Add(new Move(startSquare, targetSquare));
             }
-
-            return moves;
         }
 
-        private List<Move> GenerateSlidingMoves(int startSquare, int piece, Board b)
+        private void GenerateSlidingMoves(int startSquare, int piece, Board b, List<Move> moves)
         {
             int startDirIndex = Piece.IsType(piece, Piece.Bishop) ? 4 : 0;
             int endDirIndex = Piece.IsType(piece, Piece.Rook) ? 4 : 8;
-
-            List<Move> moves = [];
 
             for (int dir = startDirIndex; dir < endDirIndex; dir++)
             {
@@ -234,13 +215,11 @@ namespace CsFish.MoveGeneration
                         break;
                 }
             }
-
-            return moves;
         }
 
         public bool IsKingInCheck(Board b, int color)
         {
-            int kingSquare = b.FindKingSquare(color);
+            int kingSquare = color == Piece.White ? b.WhiteKingSquare : b.BlackKingSquare;
             int opponentColor = color == Piece.White ? Piece.Black : Piece.White;
 
             return IsSquareAttacked(b, kingSquare, opponentColor);

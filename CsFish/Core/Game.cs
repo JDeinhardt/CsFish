@@ -14,12 +14,13 @@ namespace CsFish.Core
         public List<Move> Moves { get; private set; } = [];
 
         public List<Move> PseudoLegalMoves { get; private set; } = [];
+        public List<Move> LegalMoves { get; private set; } = [];
 
         public Game()
         {
-            PseudoLegalMoves = _moveGenerator.GenerateLegalMoves(Board);
+            _moveGenerator.GenerateLegalMoves(Board, PseudoLegalMoves, LegalMoves);
 
-            for(int depht = 1; depht <= 6; depht++)
+            for (int depht = 1; depht <= 6; depht++)
             {
                 Stopwatch sw = new();
                 sw.Start();
@@ -34,19 +35,20 @@ namespace CsFish.Core
 
         public long Perft(Board b, int depth)
         {
-            if (depth == 0)
-                return 1;
+            if (depth == 0) return 1;
 
             long nodes = 0;
-            List<Move> moves = _moveGenerator.GenerateLegalMoves(b);
+            List<Move> pseudoLegal = new(64);
+            List<Move> legal = new(64);
+            _moveGenerator.GenerateLegalMoves(b, pseudoLegal, legal);
 
-            foreach (Move move in moves)
+            for (int i = 0; i < legal.Count; i++)
             {
+                Move move = legal[i];
                 b.MakeMove(move);
                 nodes += Perft(b, depth - 1);
                 b.UndoMove(move);
             }
-
             return nodes;
         }
     }

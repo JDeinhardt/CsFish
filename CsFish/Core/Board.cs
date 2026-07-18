@@ -10,12 +10,16 @@ namespace CsFish.Core
         public int[] Square = new int[64];
         public int ColorToMove = Piece.White;
         public int EnPassantSquare = -1;
+        public int WhiteKingSquare = -1;
+        public int BlackKingSquare = -1;
 
         public Stack<UndoInfo> _history = [];
 
         public Board()
         {
             Square = Utils.LoadPositionFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 01");
+            WhiteKingSquare = FindKingSquare(Piece.White);
+            BlackKingSquare = FindKingSquare(Piece.Black);
         }
 
         public void MakeMove(Move move)
@@ -38,14 +42,23 @@ namespace CsFish.Core
             Square[move.To] = movedPiece;
             Square[move.From] = Piece.None;
 
-            if (IsPromotion(move.Flag ?? MoveFlag.None))
-                Square[move.To] = Piece.Make(PromotionPieceType(move.Flag ?? MoveFlag.None), Piece.GetColor(movedPiece));
+            if (IsPromotion(move.Flag))
+                Square[move.To] = Piece.Make(PromotionPieceType(move.Flag), Piece.GetColor(movedPiece));
 
             EnPassantSquare = (Piece.GetType(movedPiece) == Piece.Pawn && Math.Abs(move.To - move.From) == 16)
                 ? (move.From + move.To) / 2
                 : -1;
 
             ColorToMove = ColorToMove == Piece.White ? Piece.Black : Piece.White;
+
+            // update king square
+            if(Piece.IsType(movedPiece, Piece.King))
+            {
+                if (Piece.IsColor(movedPiece, Piece.White))
+                    WhiteKingSquare = move.To;
+                else
+                    BlackKingSquare = move.To;
+            }
         }
 
         public void UndoMove(Move move)
@@ -57,7 +70,7 @@ namespace CsFish.Core
             int movedPiece = Square[move.To];
 
             // Bei Promotion: die Figur war vorher ein Bauer
-            if (IsPromotion(move.Flag ?? MoveFlag.None))
+            if (IsPromotion(move.Flag))
                 movedPiece = Piece.Make(Piece.Pawn, ColorToMove);
 
             Square[move.From] = movedPiece;
@@ -74,6 +87,15 @@ namespace CsFish.Core
             }
 
             EnPassantSquare = info.PreviousEnPassantSquare;
+
+            // King square
+            if (Piece.IsType(movedPiece, Piece.King))
+            {
+                if (Piece.IsColor(movedPiece, Piece.White))
+                    WhiteKingSquare = move.From;
+                else
+                    BlackKingSquare = move.From;
+            }
         }
 
         public int FindKingSquare(int color)
