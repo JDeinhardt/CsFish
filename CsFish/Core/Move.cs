@@ -11,8 +11,11 @@ namespace CsFish.Core
         PromoteToQueen,
         PromoteToRook,
         PromoteToKnight,
-        PromoteToBishop
-        // TODO: add castling
+        PromoteToBishop,
+        CastleWhiteQueenSide,
+        CastleWhiteKingSide,
+        CastleBlackQueenSide,
+        CastleBlackKingSide
     }
 
     public readonly struct Move(int f, int t, MoveFlag flag = MoveFlag.None)

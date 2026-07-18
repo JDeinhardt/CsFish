@@ -20,7 +20,7 @@ namespace CsFish.Core
         {
             _moveGenerator.GenerateLegalMoves(Board, PseudoLegalMoves, LegalMoves);
 
-            for (int depht = 1; depht <= 6; depht++)
+            for (int depht = 1; depht <= 4; depht++)
             {
                 Stopwatch sw = new();
                 sw.Start();

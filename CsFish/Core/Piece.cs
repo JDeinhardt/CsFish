@@ -22,6 +22,11 @@ namespace CsFish.Core
 
         public static int Make(int type, int color) => type | color;
 
+        public static int GetOpponent(int color)
+        {
+            return color == White ? Black : White;
+        }
+
         public static bool IsType(int p, int type)
         {
             return (p & TypeMask) == type;
@@ -59,7 +64,7 @@ namespace CsFish.Core
 
         public static int GetColor(int p)
         {
-            return (p >> 3) & 0b11;
+            return (p & ColorMask);
         }
     }
 }

@@ -57,11 +57,78 @@ namespace CsFish.MoveGeneration
                 else if (type == Piece.King)
                 {
                     GenerateKingMoves(startSquare, b, moves);
+                    GenerateCastlingMoves(startSquare, b, moves);
                 }
 
                 else if (type == Piece.Pawn)
                 {
                     GeneratePawnMoves(startSquare, b, piece, moves);
+                }
+            }
+        }
+
+        private void GenerateCastlingMoves(int startSquare, Board b, List<Move> moves)
+        {
+            int piece = b.Square[startSquare];
+            int color = Piece.GetColor(piece);
+
+            bool kingSide;
+            bool queenSide;
+
+            if (color == Piece.White)
+            {
+                kingSide = b.CastlingRights.CanWhiteCastleKingSide;
+                queenSide = b.CastlingRights.CanWhiteCastleQueenSide;
+            }
+            else
+            {
+                kingSide = b.CastlingRights.CanBlackCastleKingSide;
+                queenSide = b.CastlingRights.CanBlackCastleQueenSide;
+            }
+
+            // no castling rights
+            if (!kingSide && !queenSide)
+                return;
+
+            // king cannot castle out of check
+            if (IsKingInCheck(b, color))
+                return;
+
+
+            int enemyColor = Piece.GetOpponent(color);
+
+            // king side castling
+            if (kingSide)
+            {
+                int fSquare = color == Piece.White ? 5 : 61;
+                int gSquare = color == Piece.White ? 6 : 62;
+
+                if (b.Square[fSquare] == Piece.None &&
+                    b.Square[gSquare] == Piece.None &&
+                    !IsSquareAttacked(b, fSquare, enemyColor) &&
+                    !IsSquareAttacked(b, gSquare, enemyColor))
+                {
+                    MoveFlag flag = color == Piece.White ? MoveFlag.CastleWhiteKingSide : MoveFlag.CastleBlackKingSide;
+                    moves.Add(new Move(startSquare, gSquare, flag));
+                }
+            }
+
+
+            // queen side castling
+            if (queenSide)
+            {
+                int dSquare = color == Piece.White ? 3 : 59;
+                int cSquare = color == Piece.White ? 2 : 58;
+                int bSquare = color == Piece.White ? 1 : 57;
+
+                if (b.Square[dSquare] == Piece.None &&
+                    b.Square[cSquare] == Piece.None &&
+                    b.Square[bSquare] == Piece.None &&
+                    !IsSquareAttacked(b, dSquare, enemyColor) &&
+                    !IsSquareAttacked(b, cSquare, enemyColor))
+                {
+                    MoveFlag flag = color == Piece.White ? MoveFlag.CastleWhiteQueenSide : MoveFlag.CastleBlackQueenSide;
+                    moves.Add(new Move(startSquare, cSquare, flag));
                 }
             }
         }

@@ -1,6 +1,7 @@
 ﻿using CsFish.Helpers;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace CsFish.Core
@@ -12,14 +13,56 @@ namespace CsFish.Core
         public int EnPassantSquare = -1;
         public int WhiteKingSquare = -1;
         public int BlackKingSquare = -1;
+        public CastlingRights CastlingRights = new(true, true, true, true);
 
         public Stack<UndoInfo> _history = [];
 
         public Board()
         {
-            Square = Utils.LoadPositionFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 01");
+            //LoadPositionFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 01");
+            LoadPositionFromFEN("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
             WhiteKingSquare = FindKingSquare(Piece.White);
             BlackKingSquare = FindKingSquare(Piece.Black);
+        }
+
+        public void LoadPositionFromFEN(string fen)
+        {
+            // position
+            string fenBoard = fen.Split(' ')[0];
+            int file = 0;
+            int rank = 7;
+
+            foreach (char c in fenBoard)
+            {
+                if (c == '/')
+                {
+                    file = 0;
+                    rank--;
+                }
+                else
+                {
+                    if (char.IsDigit(c))
+                        file += (int)char.GetNumericValue(c);
+                    else
+                    {
+                        int color = char.IsUpper(c) ? Piece.White : Piece.Black;
+                        int type = Utils.PieceTypeFromSymbol[char.ToLower(c)];
+                        Square[rank * 8 + file] = type | color;
+                        file++;
+                    }
+                }
+            }
+
+            // color to move
+            ColorToMove = fen.Split(' ')[1] == "w" ? Piece.White : Piece.Black;
+
+            // castling rights
+            string crfp = fen.Split(' ')[2]; // castling rights fen part (crfp
+
+            CastlingRights = new(crfp.Contains('K'), crfp.Contains('Q'), crfp.Contains('k'), crfp.Contains('q'));
+
+            // en passant
+            EnPassantSquare = fen.Split(' ')[3] == "-" ? -1 : Convert.ToInt32(fen.Split(' ')[3]);
         }
 
         public void MakeMove(Move move)
@@ -34,7 +77,7 @@ namespace CsFish.Core
                 capturedPiece = Square[capturedPawnSquare];
             }
 
-            _history.Push(new UndoInfo(capturedPiece, EnPassantSquare));
+            _history.Push(new UndoInfo(capturedPiece, EnPassantSquare, CastlingRights));
 
             if (move.Flag == MoveFlag.EnPassant)
                 Square[capturedPawnSquare] = Piece.None;
@@ -44,6 +87,26 @@ namespace CsFish.Core
 
             if (IsPromotion(move.Flag))
                 Square[move.To] = Piece.Make(PromotionPieceType(move.Flag), Piece.GetColor(movedPiece));
+
+            switch (move.Flag)
+            {
+                case MoveFlag.CastleWhiteKingSide:
+                    Square[5] = Square[7];  // rook h1 → f1
+                    Square[7] = Piece.None;
+                    break;
+                case MoveFlag.CastleWhiteQueenSide:
+                    Square[3] = Square[0];  // rook a1 → d1
+                    Square[0] = Piece.None;
+                    break;
+                case MoveFlag.CastleBlackKingSide:
+                    Square[61] = Square[63]; // rook h8 → f8
+                    Square[63] = Piece.None;
+                    break;
+                case MoveFlag.CastleBlackQueenSide:
+                    Square[59] = Square[56]; // rook a8 → d8
+                    Square[56] = Piece.None;
+                    break;
+            }
 
             EnPassantSquare = (Piece.GetType(movedPiece) == Piece.Pawn && Math.Abs(move.To - move.From) == 16)
                 ? (move.From + move.To) / 2
@@ -59,6 +122,30 @@ namespace CsFish.Core
                 else
                     BlackKingSquare = move.To;
             }
+
+            if (Piece.IsType(movedPiece, Piece.King))
+            {
+                if (Piece.IsColor(movedPiece, Piece.White))
+                    CastlingRights = new CastlingRights(false, false, CastlingRights.CanBlackCastleKingSide, CastlingRights.CanBlackCastleQueenSide);
+                else
+                    CastlingRights = new CastlingRights(CastlingRights.CanWhiteCastleKingSide, CastlingRights.CanWhiteCastleQueenSide, false, false);
+            }
+
+            if (Piece.IsType(movedPiece, Piece.Rook))
+            {
+                if (move.From == 0) CastlingRights = new CastlingRights(CastlingRights.CanWhiteCastleKingSide, false, CastlingRights.CanBlackCastleKingSide, CastlingRights.CanBlackCastleQueenSide);
+                if (move.From == 7) CastlingRights = new CastlingRights(false, CastlingRights.CanWhiteCastleQueenSide, CastlingRights.CanBlackCastleKingSide, CastlingRights.CanBlackCastleQueenSide);
+                if (move.From == 56) CastlingRights = new CastlingRights(CastlingRights.CanWhiteCastleKingSide, CastlingRights.CanWhiteCastleQueenSide, CastlingRights.CanBlackCastleKingSide, false);
+                if (move.From == 63) CastlingRights = new CastlingRights(CastlingRights.CanWhiteCastleKingSide, CastlingRights.CanWhiteCastleQueenSide, false, CastlingRights.CanBlackCastleQueenSide);
+            }
+
+            if (capturedPiece != Piece.None)
+            {
+                if (move.To == 0) CastlingRights = new CastlingRights(CastlingRights.CanWhiteCastleKingSide, false, CastlingRights.CanBlackCastleKingSide, CastlingRights.CanBlackCastleQueenSide);
+                if (move.To == 7) CastlingRights = new CastlingRights(false, CastlingRights.CanWhiteCastleQueenSide, CastlingRights.CanBlackCastleKingSide, CastlingRights.CanBlackCastleQueenSide);
+                if (move.To == 56) CastlingRights = new CastlingRights(CastlingRights.CanWhiteCastleKingSide, CastlingRights.CanWhiteCastleQueenSide, CastlingRights.CanBlackCastleKingSide, false);
+                if (move.To == 63) CastlingRights = new CastlingRights(CastlingRights.CanWhiteCastleKingSide, CastlingRights.CanWhiteCastleQueenSide, false, CastlingRights.CanBlackCastleQueenSide);
+            }
         }
 
         public void UndoMove(Move move)
@@ -72,6 +159,26 @@ namespace CsFish.Core
             // Bei Promotion: die Figur war vorher ein Bauer
             if (IsPromotion(move.Flag))
                 movedPiece = Piece.Make(Piece.Pawn, ColorToMove);
+
+            switch (move.Flag)
+            {
+                case MoveFlag.CastleWhiteKingSide:
+                    Square[7] = Square[5];  // rook f1 → h1
+                    Square[5] = Piece.None;
+                    break;
+                case MoveFlag.CastleWhiteQueenSide:
+                    Square[0] = Square[3];  // rook d1 → a1
+                    Square[3] = Piece.None;
+                    break;
+                case MoveFlag.CastleBlackKingSide:
+                    Square[63] = Square[61]; // rook f8 → h8
+                    Square[61] = Piece.None;
+                    break;
+                case MoveFlag.CastleBlackQueenSide:
+                    Square[56] = Square[59]; // rook d8 → a8
+                    Square[59] = Piece.None;
+                    break;
+            }
 
             Square[move.From] = movedPiece;
             Square[move.To] = Piece.None;
@@ -96,6 +203,8 @@ namespace CsFish.Core
                 else
                     BlackKingSquare = move.From;
             }
+
+            CastlingRights = info.PreviousCastlingRights;
         }
 
         public int FindKingSquare(int color)
