@@ -20,6 +20,8 @@ namespace CsFish.Core
         public const int King = 5;
         public const int Queen = 6;
 
+        public static int Make(int type, int color) => type | color;
+
         public static bool IsType(int p, int type)
         {
             return (p & TypeMask) == type;
