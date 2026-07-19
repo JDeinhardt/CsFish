@@ -23,5 +23,16 @@ namespace CsFish.Helpers
             ['b'] = Piece.Bishop,
             ['q'] = Piece.Queen
         };
+
+        public static string NotationFromSquare(int square)
+        {
+            int file = square % 8;
+            int rank = square / 8;
+
+            char fileChar = (char)('a' + file);
+            char rankChar = (char)('1' + rank);
+
+            return $"{fileChar}{rankChar}";
+        }
     }
 }

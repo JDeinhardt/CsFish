@@ -1,4 +1,6 @@
-﻿using CsFish.MoveGeneration;
+﻿using CsFish.Engine;
+using CsFish.Helpers;
+using CsFish.MoveGeneration;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -18,8 +20,22 @@ namespace CsFish.Core
 
         public Game()
         {
-            _moveGenerator.GenerateLegalMoves(Board, PseudoLegalMoves, LegalMoves);
+            Board.LoadPositionFromFEN("r2qkb1r/pp2nppp/3p4/2pNN1B1/2BnP3/3P4/PPP2PPP/R2bK2R w KQkq - 1 0");
+            var search = new Search();
 
+            Stopwatch sw = new();
+            sw.Start();
+            Move best = search.FindBestMove(Board, 4, _moveGenerator);
+            sw.Stop();
+
+            Console.WriteLine("Best move from {0} to {1}, took {2} ms", 
+                Utils.NotationFromSquare(best.From), 
+                Utils.NotationFromSquare(best.To),
+                sw.ElapsedMilliseconds);
+        }
+
+        public void PrintPerft()
+        {
             for (int depht = 1; depht <= 4; depht++)
             {
                 Stopwatch sw = new();
