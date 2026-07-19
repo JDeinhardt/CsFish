@@ -53,7 +53,19 @@ namespace CsFish.Helpers
             int toSquare = SquareFromNotation(move.Substring(2, 2));
 
             MoveFlag flag = MoveFlag.None;
-            if (move.Length == 5)
+
+            if (fromSquare == 4) // white king
+            {
+                if (toSquare == 6) flag = MoveFlag.CastleWhiteKingSide;
+                else if (toSquare == 2) flag = MoveFlag.CastleWhiteQueenSide;
+            }
+            else if (fromSquare == 60) // black king
+            {
+                if (toSquare == 62) flag = MoveFlag.CastleBlackKingSide;
+                else if (toSquare == 58) flag = MoveFlag.CastleBlackQueenSide;
+            }
+
+            if (flag == MoveFlag.None && move.Length == 5)
             {
                 flag = move[4] switch
                 {

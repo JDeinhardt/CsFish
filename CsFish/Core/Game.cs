@@ -76,7 +76,9 @@ namespace CsFish.Core
 
                     case "quit":
                         return;
-
+                    case "printboard": // custom debug command
+                        Board.PrintBoard();
+                        break;
                     default:
                         // unknown uci commands can be handled here
                         break;
@@ -141,7 +143,7 @@ namespace CsFish.Core
 
         public void FindBestMoveFromFEN()
         {
-            Board.LoadPositionFromFEN("r1b1kb1r/pppp1ppp/5q2/4n3/3KP3/2N3PN/PPP4P/R1BQ1B1R b kq - 0 1");
+            Board.LoadPositionFromFEN("1R1k1bnr/7p/3p1p2/3Np3/8/2B5/3P1PPP/6K1 b - - 0 36 ");
             var search = new Search();
 
             Stopwatch sw = new();
