@@ -62,7 +62,11 @@ namespace CsFish.Core
             CastlingRights = new(crfp.Contains('K'), crfp.Contains('Q'), crfp.Contains('k'), crfp.Contains('q'));
 
             // en passant
-            EnPassantSquare = fen.Split(' ')[3] == "-" ? -1 : Convert.ToInt32(fen.Split(' ')[3]);
+            string ep = fen.Split(' ')[3];
+            if (ep == "-")
+                EnPassantSquare = -1;
+            else
+                EnPassantSquare = Utils.SquareFromNotation(ep);
 
             // update king squares
             WhiteKingSquare = FindKingSquare(Piece.White);

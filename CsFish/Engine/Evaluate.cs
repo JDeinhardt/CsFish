@@ -37,7 +37,7 @@ namespace CsFish.Engine
 
                 int pstIndex = isWhite ? square : (square ^ 56);
 
-                score += GetPstValue(type, pstIndex, b);
+                score += GetPstValue(type, pstIndex, b) * (Piece.GetColor(square) == Piece.White ? 1 : -1);
             }
 
             return score;
