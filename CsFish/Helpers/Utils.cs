@@ -44,6 +44,65 @@ namespace CsFish.Helpers
             return rank * 8 + file;
         }
 
+        public static string BoardToFEN(Board b)
+        {
+            // TODO: check the enpassant square
+            var sb = new StringBuilder();
+
+            for (int rank = 7; rank >= 0; rank--)
+            {
+                int empty = 0;
+                for (int file = 0; file < 8; file++)
+                {
+                    int piece = b.Square[rank * 8 + file];
+                    if (piece == Piece.None)
+                    {
+                        empty++;
+                    }
+                    else
+                    {
+                        if (empty > 0)
+                        {
+                            sb.Append(empty);
+                            empty = 0;
+                        }
+
+                        char symbol = PieceTypeToSymbol[Piece.GetType(piece)];
+                        if (Piece.GetColor(piece) == Piece.White)
+                            symbol = char.ToUpper(symbol);
+
+                        sb.Append(symbol);
+                    }
+                }
+
+                if (empty > 0)
+                    sb.Append(empty);
+
+                if (rank > 0)
+                    sb.Append('/');
+            }
+
+            sb.Append(b.ColorToMove == Piece.White ? " w " : " b ");
+
+            var cr = b.CastlingRights;
+            if (!cr.CanWhiteCastleKingSide && !cr.CanWhiteCastleQueenSide &&
+                !cr.CanBlackCastleKingSide && !cr.CanBlackCastleQueenSide)
+            {
+                sb.Append('-');
+            }
+            else
+            {
+                if (cr.CanWhiteCastleKingSide) sb.Append('K');
+                if (cr.CanWhiteCastleQueenSide) sb.Append('Q');
+                if (cr.CanBlackCastleKingSide) sb.Append('k');
+                if (cr.CanBlackCastleQueenSide) sb.Append('q');
+            }
+
+            sb.Append(" -");
+
+            return sb.ToString();
+        }
+
         public static Move ParseMove(string move)
         {
             if (string.IsNullOrEmpty(move) || move.Length < 4)

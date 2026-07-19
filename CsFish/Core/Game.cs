@@ -60,9 +60,10 @@ namespace CsFish.Core
                         break;
 
                     case string s when s.StartsWith("go"):
-                        // "go depth 8" or "go movetime 5000" or "go wtime 300000 btime 300000"
-                        int depth = ParseDepth(line); // default 8
-                        Move best = _search.FindBestMove(Board, depth, _moveGenerator);
+                        ParseGoCommand(line, out int depth, out int timeLeftMs, out int incrementMs);
+
+                        Move best = _search.FindBestMove(Board, timeLeftMs, incrementMs, _moveGenerator, depth);
+
                         string promotion = best.Flag switch
                         {
                             MoveFlag.PromoteToQueen => "q",
@@ -130,31 +131,54 @@ namespace CsFish.Core
             }
         }
 
-        private int ParseDepth(string line)
+        private void ParseGoCommand(string line, out int depth, out int timeLeftMs, out int incrementMs)
         {
-            string[] tokens = line.Split(' ');
+            depth = 64;
+            timeLeftMs = int.MaxValue;
+            incrementMs = 0;
+
+            string[] tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
             for (int i = 1; i < tokens.Length; i++)
             {
-                if (tokens[i] == "depth" && i + 1 < tokens.Length)
-                    return int.Parse(tokens[i + 1]);
+                string token = tokens[i];
+
+                switch (token)
+                {
+                    case "depth":
+                        if (i + 1 < tokens.Length && int.TryParse(tokens[i + 1], out int d))
+                            depth = d;
+                        break;
+
+                    case "movetime":
+                        if (i + 1 < tokens.Length && int.TryParse(tokens[i + 1], out int mt))
+                        {
+                            timeLeftMs = mt * 40;
+                            incrementMs = 0;
+                        }
+                        break;
+
+                    case "wtime":
+                        if (Board.ColorToMove == Piece.White && i + 1 < tokens.Length && int.TryParse(tokens[i + 1], out int wt))
+                            timeLeftMs = wt;
+                        break;
+
+                    case "btime":
+                        if (Board.ColorToMove == Piece.Black && i + 1 < tokens.Length && int.TryParse(tokens[i + 1], out int bt))
+                            timeLeftMs = bt;
+                        break;
+
+                    case "winc":
+                        if (Board.ColorToMove == Piece.White && i + 1 < tokens.Length && int.TryParse(tokens[i + 1], out int wi))
+                            incrementMs = wi;
+                        break;
+
+                    case "binc":
+                        if (Board.ColorToMove == Piece.Black && i + 1 < tokens.Length && int.TryParse(tokens[i + 1], out int bi))
+                            incrementMs = bi;
+                        break;
+                }
             }
-            return 6; // default
-        }
-
-        public void FindBestMoveFromFEN()
-        {
-            Board.LoadPositionFromFEN("1R1k1bnr/7p/3p1p2/3Np3/8/2B5/3P1PPP/6K1 b - - 0 36 ");
-            var search = new Search();
-
-            Stopwatch sw = new();
-            sw.Start();
-            Move best = search.FindBestMove(Board, 6, _moveGenerator);
-            sw.Stop();
-
-            Console.WriteLine("Best move from {0} to {1}, took {2} ms",
-                Utils.NotationFromSquare(best.From),
-                Utils.NotationFromSquare(best.To),
-                sw.ElapsedMilliseconds);
         }
 
         public void PrintPerft()
