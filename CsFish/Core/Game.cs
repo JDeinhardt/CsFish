@@ -50,6 +50,7 @@ namespace CsFish.Core
 
                     case "ucinewgame":
                         Board = new Board(); // reset
+                        _search.ClearTT();
                         break;
 
                     case string s when s.StartsWith("position"):

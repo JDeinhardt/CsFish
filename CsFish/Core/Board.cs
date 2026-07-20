@@ -14,6 +14,10 @@ namespace CsFish.Core
         public int WhiteKingSquare = -1;
         public int BlackKingSquare = -1;
         public CastlingRights CastlingRights = new(true, true, true, true);
+        public int HalfMoveClock = 0;
+
+        public ulong ZobristKey;
+        public List<ulong> PositionHistory = [];
 
         public Stack<UndoInfo> _history = [];
 
@@ -68,9 +72,19 @@ namespace CsFish.Core
             else
                 EnPassantSquare = Utils.SquareFromNotation(ep);
 
+            // half move clock
+            string[] fenParts = fen.Split(' ');
+            if (fenParts.Length >= 5 && int.TryParse(fenParts[4], out int hmc))
+                HalfMoveClock = hmc;
+            else
+                HalfMoveClock = 0;
+
             // update king squares
             WhiteKingSquare = FindKingSquare(Piece.White);
             BlackKingSquare = FindKingSquare(Piece.Black);
+
+            // Zobris key
+            ZobristKey = ComputeZobristKey();
         }
 
         public void MakeMove(Move move)
@@ -79,16 +93,41 @@ namespace CsFish.Core
             int capturedPiece = Square[move.To];
             int capturedPawnSquare = -1;
 
+            bool isIrreversable = Piece.GetType(movedPiece) == Piece.Pawn
+                                  || move.Flag == MoveFlag.EnPassant
+                                  || Square[move.To] != Piece.None // capture
+                                  || IsPromotion(move.Flag);
+
             if (move.Flag == MoveFlag.EnPassant)
             {
                 capturedPawnSquare = move.To + (ColorToMove == Piece.White ? -8 : 8);
                 capturedPiece = Square[capturedPawnSquare];
             }
 
-            _history.Push(new UndoInfo(capturedPiece, EnPassantSquare, CastlingRights));
+            _history.Push(new UndoInfo(capturedPiece, EnPassantSquare, CastlingRights, HalfMoveClock));
+
+            // ZOBRIST remove old enpassant file
+            if (IsEnPassantCaptureAvailable())
+                ZobristKey ^= Zobrist.EnPassantFile[EnPassantSquare % 8];
+
+            // ZOBRIST remove old castling rights
+            ZobristKey ^= Zobrist.Castling[CastlingRights.ToIndex()];
+
 
             if (move.Flag == MoveFlag.EnPassant)
+            {
                 Square[capturedPawnSquare] = Piece.None;
+                // Zobrist remove captured pawn
+                ZobristKey ^= Zobrist.PieceSquare[capturedPiece, capturedPawnSquare];
+            }
+            else if (capturedPiece != Piece.None)
+            {
+                // Zobrist normally captured piece removed
+                ZobristKey ^= Zobrist.PieceSquare[capturedPiece, move.To];
+            }
+
+            // Zobrist remove moves piece from square
+            ZobristKey ^= Zobrist.PieceSquare[movedPiece, move.From];
 
             Square[move.To] = movedPiece;
             Square[move.From] = Piece.None;
@@ -96,23 +135,34 @@ namespace CsFish.Core
             if (IsPromotion(move.Flag))
                 Square[move.To] = Piece.Make(PromotionPieceType(move.Flag), Piece.GetColor(movedPiece));
 
+            // Zobrist maby promoted figure in
+            ZobristKey ^= Zobrist.PieceSquare[Square[move.To], move.To];
+
             switch (move.Flag)
             {
                 case MoveFlag.CastleWhiteKingSide:
                     Square[5] = Square[7];  // rook h1 → f1
                     Square[7] = Piece.None;
+                    ZobristKey ^= Zobrist.PieceSquare[Piece.Make(Piece.Rook, Piece.White), 5];
+                    ZobristKey ^= Zobrist.PieceSquare[Piece.Make(Piece.Rook, Piece.White), 7];
                     break;
                 case MoveFlag.CastleWhiteQueenSide:
                     Square[3] = Square[0];  // rook a1 → d1
                     Square[0] = Piece.None;
+                    ZobristKey ^= Zobrist.PieceSquare[Piece.Make(Piece.Rook, Piece.White), 3];
+                    ZobristKey ^= Zobrist.PieceSquare[Piece.Make(Piece.Rook, Piece.White), 0];
                     break;
                 case MoveFlag.CastleBlackKingSide:
                     Square[61] = Square[63]; // rook h8 → f8
                     Square[63] = Piece.None;
+                    ZobristKey ^= Zobrist.PieceSquare[Piece.Make(Piece.Rook, Piece.Black), 61];
+                    ZobristKey ^= Zobrist.PieceSquare[Piece.Make(Piece.Rook, Piece.Black), 63];
                     break;
                 case MoveFlag.CastleBlackQueenSide:
                     Square[59] = Square[56]; // rook a8 → d8
                     Square[56] = Piece.None;
+                    ZobristKey ^= Zobrist.PieceSquare[Piece.Make(Piece.Rook, Piece.Black), 59];
+                    ZobristKey ^= Zobrist.PieceSquare[Piece.Make(Piece.Rook, Piece.Black), 56];
                     break;
             }
 
@@ -123,7 +173,7 @@ namespace CsFish.Core
             ColorToMove = ColorToMove == Piece.White ? Piece.Black : Piece.White;
 
             // update king square
-            if(Piece.IsType(movedPiece, Piece.King))
+            if (Piece.IsType(movedPiece, Piece.King))
             {
                 if (Piece.IsColor(movedPiece, Piece.White))
                     WhiteKingSquare = move.To;
@@ -154,6 +204,23 @@ namespace CsFish.Core
                 if (move.To == 56) CastlingRights = new CastlingRights(CastlingRights.CanWhiteCastleKingSide, CastlingRights.CanWhiteCastleQueenSide, CastlingRights.CanBlackCastleKingSide, false);
                 if (move.To == 63) CastlingRights = new CastlingRights(CastlingRights.CanWhiteCastleKingSide, CastlingRights.CanWhiteCastleQueenSide, false, CastlingRights.CanBlackCastleQueenSide);
             }
+
+            if (isIrreversable)
+                HalfMoveClock = 0;
+            else
+                HalfMoveClock++;
+
+            // Zobrist new castling rights in
+            ZobristKey ^= Zobrist.Castling[CastlingRights.ToIndex()];
+
+            // Zobrist new enpassant file in
+            if (IsEnPassantCaptureAvailable())
+                ZobristKey ^= Zobrist.EnPassantFile[EnPassantSquare % 8];
+
+            // Zobrist change right to move
+            ZobristKey ^= Zobrist.SideToMove;
+
+            PositionHistory.Add(ZobristKey);
         }
 
         public void UndoMove(Move move)
@@ -161,6 +228,7 @@ namespace CsFish.Core
             ColorToMove = ColorToMove == Piece.White ? Piece.Black : Piece.White;
 
             UndoInfo info = _history.Pop();
+            HalfMoveClock = info.PreviousHalfMoveClock;
 
             int movedPiece = Square[move.To];
 
@@ -213,6 +281,62 @@ namespace CsFish.Core
             }
 
             CastlingRights = info.PreviousCastlingRights;
+
+            // Zobrist remove last position
+            ZobristKey = PositionHistory[^1];
+
+            PositionHistory.RemoveAt(PositionHistory.Count - 1);
+        }
+
+        public ulong ComputeZobristKey()
+        {
+            ulong key = 0;
+
+            for (int sq = 0; sq < 64; sq++)
+            {
+                int piece = Square[sq];
+                if (piece != Piece.None)
+                    key ^= Zobrist.PieceSquare[piece, sq];
+            }
+
+            key ^= Zobrist.Castling[CastlingRights.ToIndex()];
+
+            if (IsEnPassantCaptureAvailable())
+                key ^= Zobrist.EnPassantFile[EnPassantSquare % 8];
+
+            if (ColorToMove == Piece.Black)
+                key ^= Zobrist.SideToMove;
+
+            return key;
+        }
+
+        private bool IsEnPassantCaptureAvailable()
+        {
+            if (EnPassantSquare == -1)
+                return false;
+
+            // check two diagonal squares adjacent to enpassant square
+            // for a pawn of ColorToMove's color
+            int[] offsets = ColorToMove == Piece.White
+                ? [-7, -9]  // white captures upward
+                : [7, 9];   // black captures downward
+
+            foreach (int offset in offsets)
+            {
+                int square = EnPassantSquare + offset;
+
+                if (square < 0 || square >= 64)
+                    continue;
+
+                // prevent file wrapping
+                if (Math.Abs((EnPassantSquare % 8) - (square % 8)) != 1)
+                    continue;
+
+                if (Square[square] == Piece.Make(Piece.Pawn, ColorToMove))
+                    return true;
+            }
+
+            return false;
         }
 
         public int FindKingSquare(int color)
@@ -239,6 +363,36 @@ namespace CsFish.Core
                  or MoveFlag.PromoteToRook
                  or MoveFlag.PromoteToBishop
                  or MoveFlag.PromoteToKnight;
+
+        public bool IsDraw()
+        {
+            return IsFiftyMoveRuleDraw() || IsRepetition(3);
+        }
+
+        public bool IsFiftyMoveRuleDraw()
+        {
+            return HalfMoveClock >= 100;
+        }
+
+        public bool IsRepetition(int requiredCount = 3)
+        {
+            int count = 0;
+
+            int searchDepth = Math.Min(PositionHistory.Count - 1, HalfMoveClock);
+
+            for (int i = 0; i < searchDepth; i++)
+            {
+                int index = PositionHistory.Count - 1 - i;
+                if (PositionHistory[index] == ZobristKey)
+                {
+                    count++;
+                    if (count >= requiredCount)
+                        return true;
+                }
+            }
+
+            return false;
+        }
 
         public void PrintBoard()
         {

@@ -19,6 +19,8 @@ namespace CsFish.Engine
 
         private OpeningBook _book = new();
 
+        private TranspositionTable _tt = new();
+
         private Move _bestMoveFound;
 
         public Search()
@@ -31,6 +33,7 @@ namespace CsFish.Engine
             );
 
             _book.LoadOpeningBook(path);
+            _tt.Clear();
         }
 
         public Move FindBestMove(Board b, int timeLeftMs, int incrementMs, MoveGenerator moveGenerator, int maxDepth = 64)
@@ -69,6 +72,13 @@ namespace CsFish.Engine
             {
                 int bestScore = -Infinity;
                 Move bestMoveCurrentLoop = default;
+
+                //TODO: move ordering here
+                //var (ttHit, _, ttBestMove) = _tt.Probe(b.ZobristKey, -Infinity, Infinity, depth);
+                //if(ttBestMove.From != 0 || ttBestMove.To != 0)
+                //{
+
+                //}
 
                 foreach (var move in legalMoves)
                 {
@@ -121,12 +131,22 @@ namespace CsFish.Engine
 
         public int NegaMax(Board b, int depth, int ply, int alpha, int beta, MoveGenerator moveGenerator)
         {
+            // TODO: maby check after n nodes
             // periodically check if time is up 
-            if ((ply & 1023) == 0)
+            if ((ply & 127) == 0)
                 CheckTime();
 
             if (_isTimeOver)
                 return 0; // return dummy value, will get discarted anyway
+
+            if (b.IsDraw())
+                return 0;
+
+            // TT PROBE
+            var (ttHit, ttScore, ttBestMove) = _tt.Probe(b.ZobristKey, alpha, beta, depth);
+            if (ttHit)
+                return ttScore; // cutoff from TT
+
 
             if (depth == 0)
                 return Evaluate.EvaluatePosition(b) * (b.ColorToMove == Piece.White ? 1 : -1);
@@ -143,6 +163,10 @@ namespace CsFish.Engine
 
             int bestScore = -Infinity;
 
+            Move bestMove = default;
+
+            int originalAlpha = alpha;
+
             foreach (var move in legalMoves)
             {
                 b.MakeMove(move);
@@ -150,14 +174,32 @@ namespace CsFish.Engine
                 b.UndoMove(move);
 
                 if (score > bestScore)
+                {
                     bestScore = score;
+                    bestMove = move;
+                }
 
                 alpha = Math.Max(alpha, score);
                 if (alpha >= beta)
                     break; // pruning
             }
 
+            if (!_isTimeOver)
+            {
+                TTFlag flag;
+                if (bestScore <= originalAlpha) flag = TTFlag.HigherBound; // Nothing improved alpha
+                else if (bestScore >= beta) flag = TTFlag.LowerBound; // Beta-Cutoff
+                else flag = TTFlag.Exact;       // Exact Score
+
+                _tt.Store(b.ZobristKey, bestScore, depth, flag, bestMove);
+            }
+
             return bestScore;
+        }
+
+        public void ClearTT()
+        {
+            _tt.Clear();
         }
     }
 }
