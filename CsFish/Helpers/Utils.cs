@@ -103,6 +103,7 @@ namespace CsFish.Helpers
             return sb.ToString();
         }
 
+        // TODO: add enpassant flag here maby
         public static Move ParseMove(string move)
         {
             if (string.IsNullOrEmpty(move) || move.Length < 4)
