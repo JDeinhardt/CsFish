@@ -184,7 +184,9 @@ namespace CsFish.Core
 
         public void PrintPerft()
         {
-            for (int depht = 1; depht <= 4; depht++)
+            Board.LoadPositionFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+            for (int depht = 1; depht <= 6; depht++)
             {
                 Stopwatch sw = new();
                 sw.Start();

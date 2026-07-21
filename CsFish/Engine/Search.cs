@@ -1,4 +1,5 @@
 ﻿using CsFish.Core;
+using CsFish.Helpers;
 using CsFish.MoveGeneration;
 using CsFish.Ressources;
 using System;
@@ -142,11 +143,15 @@ namespace CsFish.Engine
             if (b.IsDraw())
                 return 0;
 
+
             // TT PROBE
             var (ttHit, ttScore, ttBestMove) = _tt.Probe(b.ZobristKey, alpha, beta, depth);
             if (ttHit)
-                return ttScore; // cutoff from TT
-
+            {
+                if (ttScore >= MateScore - 1000) ttScore -= ply;
+                else if (ttScore <= -MateScore + 1000) ttScore += ply;
+                return ttScore;
+            }
 
             if (depth == 0)
                 return Evaluate.EvaluatePosition(b) * (b.ColorToMove == Piece.White ? 1 : -1);
@@ -191,7 +196,11 @@ namespace CsFish.Engine
                 else if (bestScore >= beta) flag = TTFlag.LowerBound; // Beta-Cutoff
                 else flag = TTFlag.Exact;       // Exact Score
 
-                _tt.Store(b.ZobristKey, bestScore, depth, flag, bestMove);
+                int scoreToStore = bestScore;
+                if (scoreToStore >= MateScore - 1000) scoreToStore += ply;
+                else if (scoreToStore <= -MateScore + 1000) scoreToStore -= ply;
+
+                _tt.Store(b.ZobristKey, scoreToStore, depth, flag, bestMove);
             }
 
             return bestScore;

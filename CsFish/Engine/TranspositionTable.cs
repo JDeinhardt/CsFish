@@ -57,6 +57,12 @@ namespace CsFish.Engine
 
         }
 
+        public Move GetBestMove(ulong key)
+        {
+            ref TTEntry entry = ref _table[Index(key)];
+            return entry.Key == key ? entry.BestMove : default;
+        }
+
         public void Store(ulong key, int score, int depth, TTFlag flag, Move bestMove)
         {
             ref TTEntry entry = ref _table[Index(key)];
