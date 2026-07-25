@@ -10,7 +10,5 @@ namespace CsFish.Core
         public int PreviousEnPassantSquare { get; init; } = prevEPS;
         public CastlingRights PreviousCastlingRights { get; init; } = prevCasltlingRights;
         public int PreviousHalfMoveClock { get; init; } = prevHMC;
-
-        // TODO: halvmove clock, maby more.
     }
 }

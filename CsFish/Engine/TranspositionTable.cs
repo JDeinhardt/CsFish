@@ -23,7 +23,7 @@ namespace CsFish.Engine
 
     public class TranspositionTable
     {
-        private const int SIZE_BITS = 21; // 2^21 
+        private const int SIZE_BITS = 23; // 2^23
         private TTEntry[] _table;
 
         public TranspositionTable()

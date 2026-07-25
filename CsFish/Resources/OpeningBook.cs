@@ -16,7 +16,7 @@ namespace CsFish.Ressources
     {
         private readonly Dictionary<string, List<BookMove>> _book = [];
 
-        public void LoadOpeningBook(string path)
+        public void LoadOpeningBook(string path, Board b)
         {
             string currentFen = "";
 
@@ -24,14 +24,14 @@ namespace CsFish.Ressources
             {
                 if (line.StartsWith("pos"))
                 {
-                    currentFen = line.Substring(4);
+                    currentFen = line[4..];
                     _book[currentFen] = []; 
                 }
                 else if (!string.IsNullOrWhiteSpace(line))
                 {
                     var parts = line.Split(' ');
 
-                    Move move = Utils.ParseMove(parts[0]);
+                    Move move = Utils.ParseMove(parts[0], b);
                     int weight = int.Parse(parts[1]);
 
                     _book[currentFen].Add(new BookMove

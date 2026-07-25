@@ -1,4 +1,4 @@
-﻿using CsFish.Helpers;
+using CsFish.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -89,6 +89,8 @@ namespace CsFish.Core
 
         public void MakeMove(Move move)
         {
+            PositionHistory.Add(ZobristKey);
+
             int movedPiece = Square[move.From];
             int capturedPiece = Square[move.To];
             int capturedPawnSquare = -1;
@@ -219,8 +221,6 @@ namespace CsFish.Core
 
             // Zobrist change right to move
             ZobristKey ^= Zobrist.SideToMove;
-
-            PositionHistory.Add(ZobristKey);
         }
 
         public void UndoMove(Move move)
@@ -310,7 +310,7 @@ namespace CsFish.Core
             return key;
         }
 
-        private bool IsEnPassantCaptureAvailable()
+        public bool IsEnPassantCaptureAvailable()
         {
             if (EnPassantSquare == -1)
                 return false;

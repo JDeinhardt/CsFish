@@ -37,5 +37,10 @@ namespace CsFish.Core
             };
             return Utils.NotationFromSquare(From) + Utils.NotationFromSquare(To) + promotion;
         }
+
+        public static bool AreEqual(Move m1, Move m2)
+        {
+            return m1.To == m2.To && m1.From == m2.From && m1.Flag == m2.Flag;
+        }
     }
 }

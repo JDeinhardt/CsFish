@@ -1,6 +1,7 @@
 ﻿using CsFish.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 
@@ -21,9 +22,13 @@ namespace CsFish.Engine
         {
             int score = 0;
 
+            bool isEndgame = IsEndgame(b);
+
             // Count material
-            foreach (var square in b.Square)
+            for(int i = 0; i < 64; i++)
             {
+                var square = b.Square[i];
+
                 if (square == Piece.None)
                     continue;
 
@@ -35,15 +40,15 @@ namespace CsFish.Engine
                 if (type != Piece.King)
                     score += ValueByPieceType[type] * sign;
 
-                int pstIndex = isWhite ? square : (square ^ 56);
+                int pstIndex = isWhite ? i : (i ^ 56);
 
-                score += GetPstValue(type, pstIndex, b) * (Piece.GetColor(square) == Piece.White ? 1 : -1);
+                score += GetPstValue(type, pstIndex, isEndgame) * sign;
             }
 
             return score;
         }
 
-        private static int GetPstValue(int type, int index, Board b)
+        private static int GetPstValue(int type, int index, bool isEndgame)
         {
             return type switch
             {
@@ -52,16 +57,35 @@ namespace CsFish.Engine
                 Piece.Bishop => PieceSquareTables.Bishop[index],
                 Piece.Rook => PieceSquareTables.Rook[index],
                 Piece.Queen => PieceSquareTables.Queen[index],
-                Piece.King => IsEndgame(b)
+                Piece.King => isEndgame
                     ? PieceSquareTables.KingEndGame[index]
                     : PieceSquareTables.KingMiddleGame[index],
                 _ => 0
             };
         }
 
-        private static bool IsEndgame(Board b)
+        public static bool IsEndgame(Board b)
         {
-            return false;
+            int whiteMaterial = 0;
+            int blackMaterial = 0;
+
+            foreach (int piece in b.Square)
+            {
+                if (piece == Piece.None)
+                    continue;
+
+                int type = Piece.GetType(piece);
+
+                if (type == Piece.Pawn || type == Piece.King)
+                    continue;
+
+                if (Piece.IsColor(piece, Piece.White))
+                    whiteMaterial += ValueByPieceType[type];
+                else
+                    blackMaterial += ValueByPieceType[type];
+            }
+
+            return whiteMaterial <= 1300 && blackMaterial <= 1300;
         }
     }
 }

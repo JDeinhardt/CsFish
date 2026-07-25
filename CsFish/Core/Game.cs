@@ -11,7 +11,7 @@ namespace CsFish.Core
     public class Game
     {
         public readonly MoveGenerator _moveGenerator = new();
-        public readonly Search _search = new();
+        public readonly Search _search;
 
         public Board Board { get; private set; } = new();
         public List<Move> Moves { get; private set; } = [];
@@ -21,7 +21,7 @@ namespace CsFish.Core
 
         public Game()
         {
-
+            _search = new(Board);
         }
 
         public void Run()
@@ -81,6 +81,15 @@ namespace CsFish.Core
                     case "printboard": // custom debug command
                         Board.PrintBoard();
                         break;
+                    case "isenpassantavailable": // custom debug command
+                        Console.WriteLine(Board.IsEnPassantCaptureAvailable());
+                        break;
+                    case "boardtofen":
+                        Console.WriteLine(Utils.BoardToFEN(Board));
+                        break;
+                    case "isendgame": // custom debug command
+                        Console.WriteLine(Evaluate.IsEndgame(Board));
+                        break;
                     default:
                         // unknown uci commands can be handled here
                         break;
@@ -127,7 +136,8 @@ namespace CsFish.Core
             // Play the moves
             for (int i = moveStartIndex; i < parts.Length; i++)
             {
-                Move move = Utils.ParseMove(parts[i]);
+                Move move = Utils.ParseMove(parts[i], Board);
+
                 Board.MakeMove(move);
             }
         }

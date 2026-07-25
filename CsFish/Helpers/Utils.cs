@@ -98,13 +98,18 @@ namespace CsFish.Helpers
                 if (cr.CanBlackCastleQueenSide) sb.Append('q');
             }
 
-            sb.Append(" -");
+            if (!b.IsEnPassantCaptureAvailable())
+                sb.Append(" -");
+            else
+            {
+                sb.Append(" " + NotationFromSquare(b.EnPassantSquare));
+            } 
 
             return sb.ToString();
         }
 
         // TODO: add enpassant flag here maby
-        public static Move ParseMove(string move)
+        public static Move ParseMove(string move, Board board)
         {
             if (string.IsNullOrEmpty(move) || move.Length < 4)
                 throw new ArgumentException("Invalid move format. Expected e2e4 or e7e8q");
@@ -136,6 +141,15 @@ namespace CsFish.Helpers
                     _ => throw new ArgumentException($"Unknown promotion piece: {move[4]}")
                 };
             }
+
+            // enpassant flag (here I assume that the moves passed were legal
+            int mP = board.Square[fromSquare];
+            int cp = board.Square[toSquare];
+
+            int fileDiff = Math.Abs(fromSquare % 8 - toSquare % 8);
+
+            if (Piece.IsType(mP, Piece.Pawn) && fileDiff == 1 && cp == Piece.None)
+                flag = MoveFlag.EnPassant;
 
             return new Move(fromSquare, toSquare, flag);
         }

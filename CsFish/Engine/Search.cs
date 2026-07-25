@@ -22,9 +22,14 @@ namespace CsFish.Engine
 
         private TranspositionTable _tt = new();
 
+        private const int MaxPly = 128;
+
+        private readonly List<Move>[] _pseudoMoves = new List<Move>[MaxPly];
+        private readonly List<Move>[] _legalMoves = new List<Move>[MaxPly];
+
         private Move _bestMoveFound;
 
-        public Search()
+        public Search(Board b)
         {
             // load opening book
             string path = Path.Combine(
@@ -33,8 +38,14 @@ namespace CsFish.Engine
                 "Book.txt"
             );
 
-            _book.LoadOpeningBook(path);
+            _book.LoadOpeningBook(path, b);
             _tt.Clear();
+
+            for (int i = 0; i < MaxPly; i++)
+            {
+                _pseudoMoves[i] = new List<Move>(256);
+                _legalMoves[i] = new List<Move>(256);
+            }
         }
 
         public Move FindBestMove(Board b, int timeLeftMs, int incrementMs, MoveGenerator moveGenerator, int maxDepth = 64)
@@ -55,9 +66,13 @@ namespace CsFish.Engine
             // ensure small safety margin
             _allocatedTimeMs = Math.Max(20, Math.Min(_allocatedTimeMs, (long)(timeLeftMs * 0.9)));
 
-            var pseudoLegalMoves = new List<Move>();
-            var legalMoves = new List<Move>();
-            moveGenerator.GenerateLegalMoves(b, pseudoLegalMoves, legalMoves);
+            var pseudoMoves = _pseudoMoves[0];
+            var legalMoves = _legalMoves[0];
+
+            pseudoMoves.Clear();
+            legalMoves.Clear();
+
+            moveGenerator.GenerateLegalMoves(b, pseudoMoves, legalMoves);
 
             // if no moves, return immediate default
             if (legalMoves.Count == 0)
@@ -73,13 +88,6 @@ namespace CsFish.Engine
             {
                 int bestScore = -Infinity;
                 Move bestMoveCurrentLoop = default;
-
-                //TODO: move ordering here
-                //var (ttHit, _, ttBestMove) = _tt.Probe(b.ZobristKey, -Infinity, Infinity, depth);
-                //if(ttBestMove.From != 0 || ttBestMove.To != 0)
-                //{
-
-                //}
 
                 foreach (var move in legalMoves)
                 {
@@ -131,7 +139,7 @@ namespace CsFish.Engine
         }
 
         public int NegaMax(Board b, int depth, int ply, int alpha, int beta, MoveGenerator moveGenerator)
-        {
+        { 
             // TODO: maby check after n nodes
             // periodically check if time is up 
             if ((ply & 127) == 0)
@@ -156,12 +164,29 @@ namespace CsFish.Engine
             if (depth == 0)
                 return Evaluate.EvaluatePosition(b) * (b.ColorToMove == Piece.White ? 1 : -1);
 
-            var pseudoLegalMoves = new List<Move>();
-            var legalMoves = new List<Move>();
+            var pseudoLegalMoves = _pseudoMoves[ply];
+            var legalMoves = _legalMoves[ply];
+
+            pseudoLegalMoves.Clear();
+            legalMoves.Clear();
+
             moveGenerator.GenerateLegalMoves(b, pseudoLegalMoves, legalMoves);
 
-            if (legalMoves.Count == 0)
+            // move ordering
+            if (ttBestMove.From != 0 || ttBestMove.To != 0)
             {
+                for (int i = 0; i < legalMoves.Count; i++)
+                {
+                    if (Move.AreEqual(legalMoves[i], ttBestMove))
+                    {
+                        (legalMoves[0], legalMoves[i]) = (legalMoves[i], legalMoves[0]);
+                        break;
+                    }
+                }
+            }
+            
+            if (legalMoves.Count == 0)
+            { 
                 bool isInCheck = moveGenerator.IsKingInCheck(b, b.ColorToMove);
                 return isInCheck ? -MateScore + ply : 0;
             }
