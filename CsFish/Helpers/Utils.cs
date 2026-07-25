@@ -103,7 +103,7 @@ namespace CsFish.Helpers
             else
             {
                 sb.Append(" " + NotationFromSquare(b.EnPassantSquare));
-            } 
+            }
 
             return sb.ToString();
         }
@@ -119,15 +119,17 @@ namespace CsFish.Helpers
 
             MoveFlag flag = MoveFlag.None;
 
-            if (fromSquare == 4) // white king
-            {
-                if (toSquare == 6) flag = MoveFlag.CastleWhiteKingSide;
-                else if (toSquare == 2) flag = MoveFlag.CastleWhiteQueenSide;
-            }
-            else if (fromSquare == 60) // black king
-            {
-                if (toSquare == 62) flag = MoveFlag.CastleBlackKingSide;
-                else if (toSquare == 58) flag = MoveFlag.CastleBlackQueenSide;
+            if (Piece.IsType(board.Square[fromSquare], Piece.King)) {
+                if (fromSquare == 4) // white king
+                {
+                    if (toSquare == 6) flag = MoveFlag.CastleWhiteKingSide;
+                    else if (toSquare == 2) flag = MoveFlag.CastleWhiteQueenSide;
+                }
+                else if (fromSquare == 60) // black king
+                {
+                    if (toSquare == 62) flag = MoveFlag.CastleBlackKingSide;
+                    else if (toSquare == 58) flag = MoveFlag.CastleBlackQueenSide;
+                }
             }
 
             if (flag == MoveFlag.None && move.Length == 5)
