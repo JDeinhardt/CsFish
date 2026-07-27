@@ -1,3 +1,4 @@
+using CsFish.Engine;
 using CsFish.Helpers;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,9 @@ namespace CsFish.Core
         public CastlingRights CastlingRights = new(true, true, true, true);
         public int HalfMoveClock = 0;
 
+        public int WhiteNonPawnMaterial;
+        public int BlackNonPawnMaterial;
+
         public ulong ZobristKey;
         public List<ulong> PositionHistory = [];
 
@@ -23,10 +27,7 @@ namespace CsFish.Core
 
         public Board()
         {
-            //LoadPositionFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 01");
-            //LoadPositionFromFEN("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
-            //WhiteKingSquare = FindKingSquare(Piece.White);
-            //BlackKingSquare = FindKingSquare(Piece.Black);
+
         }
 
         public void LoadPositionFromFEN(string fen)
@@ -85,6 +86,9 @@ namespace CsFish.Core
 
             // Zobris key
             ZobristKey = ComputeZobristKey();
+
+            // non pawn material
+            ComputeNonPawnMaterial();
         }
 
         public void MakeMove(Move move)
@@ -94,6 +98,14 @@ namespace CsFish.Core
             int movedPiece = Square[move.From];
             int capturedPiece = Square[move.To];
             int capturedPawnSquare = -1;
+            int capturedPieceType = Piece.GetType(capturedPiece);
+
+            // update non pawn material
+            if (!Piece.IsType(capturedPiece, Piece.Pawn) && capturedPieceType != Piece.None)
+                if (ColorToMove == Piece.White)
+                    WhiteNonPawnMaterial -= Evaluate.ValueByPieceType[capturedPieceType];
+                else
+                    BlackNonPawnMaterial -= Evaluate.ValueByPieceType[capturedPieceType];
 
             bool isIrreversable = Piece.GetType(movedPiece) == Piece.Pawn
                                   || move.Flag == MoveFlag.EnPassant
@@ -106,7 +118,7 @@ namespace CsFish.Core
                 capturedPiece = Square[capturedPawnSquare];
             }
 
-            _history.Push(new UndoInfo(capturedPiece, EnPassantSquare, CastlingRights, HalfMoveClock));
+            _history.Push(new UndoInfo(capturedPiece, EnPassantSquare, CastlingRights, HalfMoveClock, WhiteNonPawnMaterial, BlackNonPawnMaterial));
 
             // ZOBRIST remove old enpassant file
             if (IsEnPassantCaptureAvailable())
@@ -229,6 +241,8 @@ namespace CsFish.Core
 
             UndoInfo info = _history.Pop();
             HalfMoveClock = info.PreviousHalfMoveClock;
+            WhiteNonPawnMaterial = info.PreviousWhiteNonPawnMaterial;
+            BlackNonPawnMaterial = info.PreviousBlackNonPawnMaterial;
 
             int movedPiece = Square[move.To];
 
@@ -363,6 +377,25 @@ namespace CsFish.Core
                  or MoveFlag.PromoteToRook
                  or MoveFlag.PromoteToBishop
                  or MoveFlag.PromoteToKnight;
+
+        public void ComputeNonPawnMaterial()
+        {
+            foreach (int piece in Square)
+            {
+                if (piece == Piece.None)
+                    continue;
+
+                int type = Piece.GetType(piece);
+
+                if (type == Piece.Pawn || type == Piece.King)
+                    continue;
+
+                if (Piece.IsColor(piece, Piece.White))
+                    WhiteNonPawnMaterial += Evaluate.ValueByPieceType[type];
+                else
+                    BlackNonPawnMaterial += Evaluate.ValueByPieceType[type];
+            }
+        }
 
         public bool IsDraw()
         {

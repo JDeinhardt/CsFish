@@ -24,6 +24,8 @@ namespace CsFish.Engine
 
         private const int MaxPly = 128;
 
+        private long _nodes;
+
         private readonly List<Move>[] _pseudoMoves = new List<Move>[MaxPly];
         private readonly List<Move>[] _legalMoves = new List<Move>[MaxPly];
 
@@ -66,6 +68,8 @@ namespace CsFish.Engine
             // ensure small safety margin
             _allocatedTimeMs = Math.Max(20, Math.Min(_allocatedTimeMs, (long)(timeLeftMs * 0.9)));
 
+            _nodes = 0;
+
             var pseudoMoves = _pseudoMoves[0];
             var legalMoves = _legalMoves[0];
 
@@ -82,6 +86,14 @@ namespace CsFish.Engine
             _bestMoveFound = legalMoves[0];
 
             _timer.Restart();
+
+            int index = legalMoves.IndexOf(_bestMoveFound);
+
+            if (index > 0)
+            {
+                (legalMoves[0], legalMoves[index]) =
+                    (legalMoves[index], legalMoves[0]);
+            }
 
             // iterative deepening loop
             for (int depth = 1; depth <= maxDepth; depth++)
@@ -139,10 +151,10 @@ namespace CsFish.Engine
         }
 
         public int NegaMax(Board b, int depth, int ply, int alpha, int beta, MoveGenerator moveGenerator)
-        { 
-            // TODO: maby check after n nodes
-            // periodically check if time is up 
-            if ((ply & 127) == 0)
+        {
+            _nodes++;
+
+            if ((_nodes & 2047) == 0)
                 CheckTime();
 
             if (_isTimeOver)
@@ -171,19 +183,6 @@ namespace CsFish.Engine
             legalMoves.Clear();
 
             moveGenerator.GenerateLegalMoves(b, pseudoLegalMoves, legalMoves);
-
-            // move ordering
-            if (ttBestMove.From != 0 || ttBestMove.To != 0)
-            {
-                for (int i = 0; i < legalMoves.Count; i++)
-                {
-                    if (Move.AreEqual(legalMoves[i], ttBestMove))
-                    {
-                        (legalMoves[0], legalMoves[i]) = (legalMoves[i], legalMoves[0]);
-                        break;
-                    }
-                }
-            }
             
             if (legalMoves.Count == 0)
             { 
@@ -194,8 +193,34 @@ namespace CsFish.Engine
             int bestScore = -Infinity;
 
             Move bestMove = default;
+            Move hashMove = ttBestMove;
 
             int originalAlpha = alpha;
+
+            // move ordering
+            legalMoves.Sort((m1, m2) =>
+            {
+                int s1 = ScoreMove(b, m1);
+                int s2 = ScoreMove(b, m2);
+
+                if (m1.Equals(hashMove))
+                    s1 += 1_000_000;
+
+                if (m2.Equals(hashMove))
+                    s2 += 1_000_000;
+
+                return s2.CompareTo(s1);
+            });
+
+            if (!hashMove.Equals(default))
+            {
+                int index = legalMoves.IndexOf(hashMove);
+                if (index > 0)
+                {
+                    (legalMoves[0], legalMoves[index]) =
+                        (legalMoves[index], legalMoves[0]);
+                }
+            }
 
             foreach (var move in legalMoves)
             {
@@ -229,6 +254,31 @@ namespace CsFish.Engine
             }
 
             return bestScore;
+        }
+
+        public int ScoreMove(Board b, Move m)
+        {
+            int cp;
+            int mp = b.Square[m.From];
+
+            if (m.Flag != MoveFlag.EnPassant)
+                cp = b.Square[m.To];
+            else 
+                cp = Piece.Pawn | (b.ColorToMove == Piece.White ? Piece.Black : Piece.White);
+
+            if (cp == Piece.None)
+                return 0;
+
+            if (m.Flag == MoveFlag.PromoteToQueen)
+            {
+                return 100000;
+            }
+
+            int cpt = Piece.GetType(cp);
+            int mpt = Piece.GetType(mp);
+
+            return Evaluate.ValueByPieceType[cpt] * 10
+                 - Evaluate.ValueByPieceType[mpt];
         }
 
         public void ClearTT()

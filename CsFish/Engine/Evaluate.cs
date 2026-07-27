@@ -15,7 +15,8 @@ namespace CsFish.Engine
             { Piece.Knight, 300 },
             { Piece.Pawn, 100 },
             { Piece.Rook, 500 },
-            { Piece.Queen, 900 }
+            { Piece.Queen, 900 },
+            {Piece.King, 0 },
         };
 
         public static int EvaluatePosition(Board b)
@@ -66,26 +67,7 @@ namespace CsFish.Engine
 
         public static bool IsEndgame(Board b)
         {
-            int whiteMaterial = 0;
-            int blackMaterial = 0;
-
-            foreach (int piece in b.Square)
-            {
-                if (piece == Piece.None)
-                    continue;
-
-                int type = Piece.GetType(piece);
-
-                if (type == Piece.Pawn || type == Piece.King)
-                    continue;
-
-                if (Piece.IsColor(piece, Piece.White))
-                    whiteMaterial += ValueByPieceType[type];
-                else
-                    blackMaterial += ValueByPieceType[type];
-            }
-
-            return whiteMaterial <= 1300 && blackMaterial <= 1300;
+            return b.WhiteNonPawnMaterial <= 1300 && b.BlackNonPawnMaterial <= 1300;
         }
     }
 }
