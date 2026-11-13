@@ -3,7 +3,7 @@
 A chess engine coded in C# <br>
 This is a hobby project and not meant to compete with top engines like Stockfish.
 
-A demonstration video of the engine playing against itself (start is cut off because the engine used an opening book and played the moves almost instantly):
+A demonstration video (2x speed) of the engine playing against itself (start is cut off because the engine used an opening book and played the moves almost instantly):
 
 https://github.com/user-attachments/assets/cd17eb78-0d7a-4c81-9aab-488c78884dcf
 
